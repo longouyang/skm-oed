@@ -185,14 +185,11 @@ var gillespie = function(vRates, vState, tStart, tEnd) {
   if (totalHazard == 0) {
     return []
   }
-  // var dtDist = Exponential({a: totalHazard});
-  // var dt = sample(dtDist);
-  // var lawDist = Discrete({ps: hazards});
-  // var lawNum = sample(lawDist);
+  var dtDist = Exponential({a: totalHazard});
+  var dt = sample(dtDist);
+  var lawDist = Discrete({ps: hazards});
+  var lawNum = sample(lawDist);
 
-  // attempt at doing likelihood-free MCMC
-  var dt = Exponential({a: totalHazard}).sample()
-  var lawNum = Discrete({ps: hazards}).sample()
   var stateUpdate = vLaws[lawNum];
   var newState = T.add(vState, stateUpdate);
 
@@ -227,10 +224,6 @@ var gillespieScore = function(vRates, trajectory) {
   )
 }
 
-// imagine some data to do inference on
-
-//console.log(traj)
-
 var partialMeasurements = function(traj, num) {
   // modify traj so that we know when each state began and end
   var _traj = [{t: 0,
@@ -259,7 +252,6 @@ var partialMeasurements = function(traj, num) {
   }
   map(getStateAtTime, times)
 }
-
 var noisifyMeasurement = function(measurement) {
   _map(
     measurement,
@@ -276,30 +268,13 @@ var noisifyMeasurement = function(measurement) {
 }
 
 
-//partialMeasurements(traj, 10)
 
-//sample()
-
-var pp = function(m) {
-  _map(m,
-       function(x) {
-         console.log(_.extend({}, x, {state: map(round3, T.toScalars(x.state))}))
-       }
-      )
-  return null
-}
-
-var tEnd = 300;
+// imagine some data to do inference on
 util.seedRNG(2)
-var trueTrajectory = gillespie(Vector(trueRates),
-                               Vector(initialState),
-                               0,
-                               tEnd)
-
+var tEnd = 300;
+var trueTrajectory = gillespie(Vector(trueRates), Vector(initialState), 0, tEnd)
 var numTimes = 10
 var actualMeasurement = partialMeasurements(trueTrajectory, numTimes)
-// pp(measurement)
-// pp(noisifyMeasurement(measurement))
 
 
 var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
@@ -310,7 +285,9 @@ var compactTrajectory = function(traj) {
   return _.map(traj, 'lawNum').join('')
 }
 
-
+// used in LF-MCMC: sample one (persistent) trajectory for a given rate
+// NB: this calls out to helper.gillespie(), which is just gillespie but
+// coded in vanilla javascript, for improved performance (see helper/index.js)
 var cachedSampleMeasurement = cache(function(rates) {
   var trajectory = helper.gillespie(rates, vInitialState, 0, tEnd,
                                     lawInputs, speciesNums, lawNums, vLaws)
@@ -318,8 +295,6 @@ var cachedSampleMeasurement = cache(function(rates) {
   return sampledMeasurement
 }, 30)
 
-
-var dbgtimes = []
 var model = function() {
   var rates = _map(ratePriorDists,
                    function(dist) {
@@ -330,7 +305,9 @@ var model = function() {
                      }
                    })
 
-  // the Infer introduces a bit of overhead (12s to 13s for 300 samples)
+  // sample a trajectory using Infer(...).sample() pattern to ensure that
+  // the probability of the trajectory doesn't have any effect (likelihood-free)
+  // note: the Infer introduces a bit of overhead (12s to 13s for 300 samples)
   var sampledMeasurement = Infer({method: 'forward',
                                   samples: 1,
                                   model: function() {
@@ -338,9 +315,6 @@ var model = function() {
                                   }
 
                                  }).sample()
-
-  // console.log(map(round3, [rates[2],rates[8],rates[9]]))
-  // console.log(compactTrajectory(trajectory))
 
   var errors = map2(function(am,sm) { observe(errorDist, T.sub(am.state, sm.state)) },
                     actualMeasurement,
@@ -355,15 +329,8 @@ var model = function() {
 
 util.seedRNG(1)
 var post = Infer({
-  //method: 'incrementalMH', samples: 50000,
-  method: 'MCMC', samples: 10, verbose: true,
-  //method: 'incrementalMH', samples: 200, verbose: true,
-  //method: 'SMC', particles: 100,
-  //method: 'MCMC', kernel: 'HMC', samples: 500, verbose: true,
+  method: 'MCMC', samples: 1000, verbose: true,
   model: model
 })
 
-
 post
-//expectation(post, function(x) { x[2] })
-//expectation(post)
