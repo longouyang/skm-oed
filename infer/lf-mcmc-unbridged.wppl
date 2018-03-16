@@ -260,7 +260,7 @@ var noisifyMeasurement = function(measurement) {
         t: x.t,
         state: T.add(x.state,
                      sample(MultivariateGaussian({mu: zeros([numSpecies, 1]),
-                                                  cov: T.mul(idMatrix(numSpecies), 0.05)
+                                                  cov: T.mul(idMatrix(numSpecies), 100)
                                                  })))
       }
     }
@@ -278,7 +278,7 @@ var actualMeasurement = partialMeasurements(trueTrajectory, numTimes)
 
 
 var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
-                                      cov: T.mul(idMatrix(numSpecies), 0.05)
+                                      cov: T.mul(idMatrix(numSpecies), 100)
                                      })
 
 var compactTrajectory = function(traj) {
@@ -295,13 +295,17 @@ var cachedSampleMeasurement = cache(function(rates) {
   return sampledMeasurement
 }, 30)
 
+var gaussianDrift = function(prevVal) {
+  return Gaussian({mu: prevVal, sigma: 0.2 * prevVal});
+};
+
 var model = function() {
   var rates = _map(ratePriorDists,
                    function(dist) {
                      if (_.has(dist.params, 'v')) {
                        return dist.params.v
                      } else {
-                       return sample(dist)
+                       return sample(dist, {driftKernel: gaussianDrift})
                      }
                    })
 
