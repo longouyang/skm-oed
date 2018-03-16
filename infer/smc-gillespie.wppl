@@ -10,6 +10,10 @@ var round3 = function(x) {
   return Math.round(x * 1000)/1000;
 }
 
+var mean = function(xs) {
+  sum(xs) / xs.length
+}
+
 // add two arrays
 var listAdd = function(xs, ys) {
   map2(function(x, y) { return x + y }, xs, ys)
@@ -201,7 +205,7 @@ var gillespie = function(vRates, vState, tStart, tEnd) {
 //var actualMeasurement = Vector([ 1, 1, 1, 4, 0, 1, 0, 0, 0 ]);
 
 var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
-                                      cov: T.mul(idMatrix(numSpecies), 0.05)
+                                      cov: T.mul(idMatrix(numSpecies), 100)
                                      })
 
 
@@ -217,22 +221,31 @@ var rates = _map(ratePriorDists,
 var global_tEnd = 300;
 
 var estimateLikelihood = function(vRates, actualMeasurement) {
-  var model = function() {
-    var traj = gillespie(vRates, vInitialState, 0, global_tEnd);
-    var sampledMeasurement = _.last(traj).state
-    observe(errorDist, T.sub(actualMeasurement, sampledMeasurement))
-    var trajString = _map(traj, function(jump) { return jump.t + ',' + jump.lawNum }).join(';');
-    var trajHash = crypto.createHash('md5').update(trajString).digest('hex');
-    return trajHash
-  }
-  var post = Infer({
-    //method: 'PMCMC', particles: 10, sweeps: 2,
-    method: 'SMC', particles: 200,//, rejuvSteps: 10,
-    model: model
-  })
-  //console.log(post.support().length)
-  display(post.support().length)
-  return post.normalizationConstant
+  // var model = function() {
+  //   var traj = gillespie(vRates, vInitialState, 0, global_tEnd);
+  //   var sampledMeasurement = _.last(traj).state
+  //   //console.log(T.toScalars(sampledMeasurement), round3(errorDist.score(T.sub(actualMeasurement, sampledMeasurement))))
+  //   observe(errorDist, T.sub(actualMeasurement, sampledMeasurement))
+  //   var trajString = _map(traj, function(jump) { return jump.t + ',' + jump.lawNum }).join(';');
+  //   var trajHash = crypto.createHash('md5').update(trajString).digest('hex');
+  //   return trajHash
+  // }
+  // var post = Infer({
+  //   //method: 'PMCMC', particles: 10, sweeps: 2,
+  //   method: 'SMC', particles: 20,//, rejuvSteps: 10,
+  //   model: model
+  // })
+  // //console.log(post.support().length)
+  // //display(post.support().length)
+  // return post.normalizationConstant
+
+  var trajs = helper.nGillespie(30, rates, vInitialState, 0, global_tEnd, lawInputs, speciesNums, lawNums, vLaws);
+  var lls = _map(trajs,
+                 function(traj) {
+                   var sm = _.last(traj).state
+                   return errorDist.score(T.sub(actualMeasurement, sm))
+                 })
+  return mean(lls);
 }
 
 // TODO: drift kernels
@@ -258,16 +271,16 @@ var parameterInference = function(actualMeasurement) {
   }
   return Infer({model: model,
                 method: 'MCMC',
-                samples: 5,
+                samples: 100,
                 verbose: true
                })
 }
 
 util.seedRNG(2)
 var actualMeasurement = _.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state
-util.seedRNG(3)
-estimateLikelihood(Vector(trueRates), actualMeasurement)
+util.seedRNG(4)
+//estimateLikelihood(Vector(trueRates), actualMeasurement)
 
 
-//parameterInference(actualMeasurement)
+parameterInference(actualMeasurement)
 //display(actualMeasurement)

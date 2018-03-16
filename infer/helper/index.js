@@ -117,8 +117,17 @@ var gillespie = function(rates, vState, tStart, tEnd,
   return jumps
 }
 
+var nGillespie = function(n,rates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws) {
+  var ret = []
+  for(var i = 0; i < n; i++ ) {
+    ret.push(gillespie(rates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws))
+  }
+  return ret;
+}
+
 module.exports = {
   logGamma: logGamma,
   digamma: digamma,
-  gillespie: gillespie
+  gillespie: gillespie,
+  nGillespie: nGillespie
 }
