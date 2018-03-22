@@ -69,11 +69,13 @@ var mul = function(xs, ys) {
   })
 }
 
-var gillespie = function(rates, vState, tStart, tEnd,
+var gillespie = function(vRates, vState, tStart, tEnd,
                          lawInputs, speciesNums, lawNums, vLaws
                         ) {
   var jumps = [];
   var tAcc = tStart;
+
+  var rates = global.T.toScalars(vRates)
 
   // multiply by 1 so we're not mutating the object we received
   var accState = global.T.mul(vState, 1);
@@ -118,10 +120,10 @@ var gillespie = function(rates, vState, tStart, tEnd,
   return jumps
 }
 
-var nGillespie = function(n,rates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws) {
+var nGillespie = function(n, vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws) {
   var ret = []
   for(var i = 0; i < n; i++ ) {
-    ret.push(gillespie(rates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws))
+    ret.push(gillespie(vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws))
   }
   return ret;
 }
