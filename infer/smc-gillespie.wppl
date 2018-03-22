@@ -1,4 +1,4 @@
-// (local-set-key (kbd "s-r") (lambda () (interactive) (save-buffer) (process-send-string "*shell skm-oed*" "echo '\n'; make smc-gillespie.wppl.js; time node smc-gillespie.wppl.js\n")))
+// (local-set-key (kbd "s-r") (lambda () (interactive) (save-buffer) (process-send-string "*shell skm-oed*" "echo '\n'; make smc-gillespie.wppl.js && time node smc-gillespie.wppl.js\n")))
 
 // versions of functional helpers that take lists as first arg rather than second
 var _map = function(xs, f) { return map(f, xs) }
@@ -221,7 +221,7 @@ var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
 var global_tEnd = 300;
 
 var estimateLikelihoodFwd = function(vRates, actualMeasurement) {
-  var trajs = helper.nGillespie(500, vRates, vInitialState, 0, global_tEnd, lawInputs, speciesNums, lawNums, vLaws);
+  var trajs = helper.nGillespie(400, vRates, vInitialState, 0, global_tEnd, lawInputs, speciesNums, lawNums, vLaws);
   var lls = _map(trajs,
                  function(traj) {
                    var sm = _.last(traj).state
@@ -246,7 +246,7 @@ var estimateLikelihood = function(vRates, actualMeasurement) {
   }
   var post = Infer({
     //method: 'PMCMC', particles: 10, sweeps: 2,
-    method: 'SMC', particles: 100,//, rejuvSteps: 10,
+    method: 'SMC', particles: 400,
     model: model
   })
   //display(post.support().length)
@@ -267,7 +267,7 @@ var parameterInference = function(actualMeasurement) {
     var vRates = Vector(rates);
 
 
-    factor(estimateLikelihood(vRates, actualMeasurement))
+    factor(estimateLikelihoodFwd(vRates, actualMeasurement))
 
     var ret = [rates[2],rates[8],rates[9]]
     //console.log(map(function(x) { ad.value(x) }, ret))
@@ -285,7 +285,7 @@ var parameterInference = function(actualMeasurement) {
 util.seedRNG(2)
 var actualMeasurement = _.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state
 console.log(T.toScalars(actualMeasurement))
-util.seedRNG(6)
+util.seedRNG(7)
 var r = [estimateLikelihoodFwd(Vector(trueRates), actualMeasurement), estimateLikelihood(Vector(trueRates), actualMeasurement)
         ]
 r
