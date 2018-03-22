@@ -69,6 +69,28 @@ var mul = function(xs, ys) {
   })
 }
 
+function randomExponential(rate) {
+  // Allow to pass a random uniform value or function
+  // Default to Math.random()
+  var U = Math.random();
+
+  return -Math.log(U)/rate;
+}
+
+function randomDiscrete(ps) {
+  var bins = [];
+  var runningTotal = 0;
+  var U = Math.random();
+  for(var i = 0; i < ps.length; i++) {
+    var binLeft = runningTotal, binRight = runningTotal + ps[i];
+    if (U > binLeft && U < binRight) {
+      return i
+    }
+    runningTotal += ps[i]
+  }
+  return bins
+}
+
 var gillespie = function(vRates, vState, tStart, tEnd,
                          lawInputs, speciesNums, lawNums, vLaws
                         ) {
@@ -98,10 +120,11 @@ var gillespie = function(vRates, vState, tStart, tEnd,
     if (totalHazard == 0) {
       return jumps
     }
-    var dtDist = new global.dists.Exponential({a: totalHazard})
-    var dt = dtDist.sample()
-    var lawDist = new global.dists.Discrete({ps: hazards})
-    var lawNum = lawDist.sample()
+    var dt = randomExponential(totalHazard)//dtDist.sample()
+    var hazardsNormalized = hazards.map(function(h) { return h / totalHazard })
+    var lawNum = randomDiscrete(hazardsNormalized)
+
+
     var stateUpdate = vLaws[lawNum];
 
     tAcc = tAcc + dt
