@@ -103,17 +103,16 @@ var gillespie = function(vRates, vState, tStart, tEnd,
     var lawDist = new global.dists.Discrete({ps: hazards})
     var lawNum = lawDist.sample()
     var stateUpdate = vLaws[lawNum];
-    accState = global.T.add(accState, stateUpdate);
 
     tAcc = tAcc + dt
 
     var jump = {dt: dt,
                 t: tAcc,
                 lawNum: lawNum,
-                prevState: vState,
-                state: accState,
-                gValues: gValues
-               }
+                state: global.T.add(accState, stateUpdate),
+                gValues: gValues}
+
+    accState = global.T.add(accState, stateUpdate);
     jumps.push(jump)
   }
 
