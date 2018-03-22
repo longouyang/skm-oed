@@ -88,8 +88,13 @@ function randomDiscrete(ps) {
     }
     runningTotal += ps[i]
   }
+
   return bins
 }
+
+
+const NS_PER_SEC = 1e9;
+var ns_total = 0;
 
 var gillespie = function(vRates, vState, tStart, tEnd,
                          lawInputs, speciesNums, lawNums, vLaws
@@ -99,54 +104,70 @@ var gillespie = function(vRates, vState, tStart, tEnd,
 
   var rates = global.T.toScalars(vRates)
 
-  // multiply by 1 so we're not mutating the object we received
-  var accState = global.T.mul(vState, 1);
+  var accState = global.T.toScalars(vState);
 
   var getGValue = function(i) {
     var input = lawInputs[i]
     return product(speciesNums.map(function(j) {
-      var state_j = global.T.get(accState, j)
+      var state_j = accState[j]
       var input_j = input[j]
       return choose(state_j, input_j)
     }))
   }
 
+  var laws = vLaws.map(function(vLaw) { return global.T.toScalars(vLaw) })
+  var numSpecies = speciesNums.length
+  var numLaws = laws.length
+
   while (tAcc < tEnd) {
+    // calculate hazards and sum hazards in an inlined loop rather than function call
+    var hazards = [];
+    var totalHazard = 0;
+    for(var i = 0; i < numLaws; i++) {
+      var input = lawInputs[i]
+      var haz = rates[i];
+      for(var j = 0; j < numSpecies; j++) {
+        haz *= choose(accState[j], input[j])
+      }
+      hazards.push(haz)
+      totalHazard += haz
+    }
 
-    var gValues = lawNums.map(getGValue)
-
-    var hazards = mul(rates, gValues),
-        totalHazard = global._.sum(hazards);
     if (totalHazard == 0) {
       return jumps
     }
-    var dt = randomExponential(totalHazard)//dtDist.sample()
+    var dt = randomExponential(totalHazard)
     var hazardsNormalized = hazards.map(function(h) { return h / totalHazard })
     var lawNum = randomDiscrete(hazardsNormalized)
 
-
-    var stateUpdate = vLaws[lawNum];
+    var stateUpdate = laws[lawNum];
 
     tAcc = tAcc + dt
+
+    accState = add(accState, stateUpdate);
 
     var jump = {dt: dt,
                 t: tAcc,
                 lawNum: lawNum,
-                state: global.T.add(accState, stateUpdate),
-                gValues: gValues}
+                state: accState}
 
-    accState = global.T.add(accState, stateUpdate);
     jumps.push(jump)
   }
 
+  jumps[jumps.length - 1].state = global.T.fromScalars(jumps[jumps.length - 1].state)
   return jumps
 }
 
 var nGillespie = function(n, vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws) {
   var ret = []
+  //var t = Date.now()
+  ns_total = 0
   for(var i = 0; i < n; i++ ) {
     ret.push(gillespie(vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws))
   }
+  // console.log('total ' + (Date.now() - t))
+  // console.log(ns_total / NS_PER_SEC)
+
   return ret;
 }
 
