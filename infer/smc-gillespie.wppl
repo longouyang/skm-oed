@@ -221,14 +221,15 @@ var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
 var global_tEnd = 300;
 
 var estimateLikelihoodFwd = function(rates, actualMeasurement) {
-  var trajs = helper.nGillespie(50, rates, initialState, 0, global_tEnd, lawInputs, laws);
+  var n = 50;
+  var trajs = helper.nGillespie(n, rates, initialState, 0, global_tEnd, lawInputs, laws);
   var lls = _map(trajs,
                  function(traj) {
                    var sm = _.last(traj).state
                    var score = errorDist.score(T.sub(actualMeasurement, sm))
                    return score
                  })
-  return mean(lls);
+  return numeric._logsumexp(lls) - Math.log(n)
 }
 
 var estimateLikelihood = function(vRates, actualMeasurement) {
@@ -246,7 +247,7 @@ var estimateLikelihood = function(vRates, actualMeasurement) {
   }
   var post = Infer({
     //method: 'PMCMC', particles: 10, sweeps: 2,
-    method: 'SMC', particles: 400,
+    method: 'SMC', particles: 20,
     model: model
   })
   //display(post.support().length)
@@ -285,11 +286,12 @@ var parameterInference = function(actualMeasurement) {
 util.seedRNG(2)
 var actualMeasurement = _.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state
 // console.log(T.toScalars(actualMeasurement))
-// util.seedRNG(7)
-// var r = [estimateLikelihoodFwd(Vector(trueRates), actualMeasurement), estimateLikelihood(Vector(trueRates), actualMeasurement)
-//         ]
-// r
+util.seedRNG(7)
+var r = [estimateLikelihoodFwd(trueRates, actualMeasurement),
+         estimateLikelihood(Vector(trueRates), actualMeasurement)
+        ]
+r
 
 
-parameterInference(actualMeasurement)
+//parameterInference(actualMeasurement)
 //display(actualMeasurement)
