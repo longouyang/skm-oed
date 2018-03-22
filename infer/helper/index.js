@@ -75,7 +75,8 @@ var gillespie = function(rates, vState, tStart, tEnd,
   var jumps = [];
   var tAcc = tStart;
 
-  var accState = vState;
+  // multiply by 1 so we're not mutating the object we received
+  var accState = global.T.mul(vState, 1);
 
   var getGValue = function(i) {
     var input = lawInputs[i]
