@@ -289,9 +289,7 @@ var compactTrajectory = function(traj) {
 // NB: this calls out to helper.gillespie(), which is just gillespie but
 // coded in vanilla javascript, for improved performance (see helper/index.js)
 var cachedSampleMeasurement = cache(function(rates) {
-  var vRates = Vector(rates);
-  var trajectory = helper.gillespie(vRates, vInitialState, 0, tEnd,
-                                    lawInputs, speciesNums, lawNums, vLaws)
+  var trajectory = helper.gillespie(rates, initialState, 0, tEnd, lawInputs, laws)
   var sampledMeasurement = partialMeasurements(trajectory, numTimes)
   return sampledMeasurement
 }, 30)

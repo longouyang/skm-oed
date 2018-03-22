@@ -93,30 +93,16 @@ function randomDiscrete(ps) {
 }
 
 
-const NS_PER_SEC = 1e9;
+var NS_PER_SEC = 1e9;
 var ns_total = 0;
 
-var gillespie = function(vRates, vState, tStart, tEnd,
-                         lawInputs, speciesNums, lawNums, vLaws
-                        ) {
+var gillespie = function(rates, state, tStart, tEnd, lawInputs, laws) {
   var jumps = [];
   var tAcc = tStart;
 
-  var rates = global.T.toScalars(vRates)
+  var accState = state.slice()
 
-  var accState = global.T.toScalars(vState);
-
-  var getGValue = function(i) {
-    var input = lawInputs[i]
-    return product(speciesNums.map(function(j) {
-      var state_j = accState[j]
-      var input_j = input[j]
-      return choose(state_j, input_j)
-    }))
-  }
-
-  var laws = vLaws.map(function(vLaw) { return global.T.toScalars(vLaw) })
-  var numSpecies = speciesNums.length
+  var numSpecies = laws[0].length
   var numLaws = laws.length
 
   while (tAcc < tEnd) {
@@ -149,21 +135,20 @@ var gillespie = function(vRates, vState, tStart, tEnd,
     var jump = {dt: dt,
                 t: tAcc,
                 lawNum: lawNum,
-                state: accState}
+                state: global.T.fromScalars(accState)}
 
     jumps.push(jump)
   }
 
-  jumps[jumps.length - 1].state = global.T.fromScalars(jumps[jumps.length - 1].state)
   return jumps
 }
 
-var nGillespie = function(n, vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws) {
+var nGillespie = function(n, rates, state, tStart, tEnd, lawInputs, laws) {
   var ret = []
   //var t = Date.now()
   ns_total = 0
   for(var i = 0; i < n; i++ ) {
-    ret.push(gillespie(vRates, vState, tStart, tEnd, lawInputs, speciesNums, lawNums, vLaws))
+    ret.push(gillespie(rates, state, tStart, tEnd, lawInputs, laws))
   }
   // console.log('total ' + (Date.now() - t))
   // console.log(ns_total / NS_PER_SEC)

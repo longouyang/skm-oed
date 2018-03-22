@@ -220,8 +220,8 @@ var errorDist = MultivariateGaussian({mu: zeros([numSpecies, 1]),
 
 var global_tEnd = 300;
 
-var estimateLikelihoodFwd = function(vRates, actualMeasurement) {
-  var trajs = helper.nGillespie(50, vRates, vInitialState, 0, global_tEnd, lawInputs, speciesNums, lawNums, vLaws);
+var estimateLikelihoodFwd = function(rates, actualMeasurement) {
+  var trajs = helper.nGillespie(50, rates, initialState, 0, global_tEnd, lawInputs, laws);
   var lls = _map(trajs,
                  function(traj) {
                    var sm = _.last(traj).state
@@ -267,7 +267,7 @@ var parameterInference = function(actualMeasurement) {
     var vRates = Vector(rates);
 
 
-    factor(estimateLikelihoodFwd(vRates, actualMeasurement))
+    factor(estimateLikelihoodFwd(rates, actualMeasurement))
 
     var ret = [rates[2],rates[8],rates[9]]
     //console.log(map(function(x) { ad.value(x) }, ret))
