@@ -1,0 +1,14 @@
+var model = function() {
+  var weight = sample(Beta({a: 2, b: 2}))
+  //factor(weight + weight)
+  factor(Math.log(weight) + Math.log(1 - weight))
+  return weight
+}
+
+expectation(Infer({
+  model: model,
+  method: 'optimize',
+  steps: 2000,
+  estimator: {ELBO: {samples: 20}},
+  verbose: true
+}))

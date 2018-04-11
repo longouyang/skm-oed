@@ -1,0 +1,67 @@
+// (local-set-key (kbd "s-r") (lambda () (interactive) (save-buffer) (process-send-string "*shell skm-oed*" "echo '\n'; webppl vi-bern-amortized.wppl\n")))
+
+var model = function() {
+  var nh = globalStore['nh'], nt = globalStore['nt']
+  var weight = sample(Beta({a: 2, b: 2}),
+                      {guide: function() {
+                        var net = affine('recog', {in: 2, out: 2})
+                        var y = T.sigmoid(net(Vector([20, 5])));
+                        // squish to (2,b)
+                        var a = 2
+                        var b = 100
+                        var params = T.add(T.mul(y, b - a), a);
+                        Beta({a: T.get(params, 0),
+                              b: T.get(params, 1)})
+                        // var guideMu = T.get(netOutput, 0)
+                        // var guideSigma = Math.exp(T.get(netOutput, 1))
+                        // return LogitNormal({a: 0.0001,
+                        //                     b: 0.9999,
+                        //                     mu: guideMu,
+                        //                     sigma: guideSigma})
+
+                      }})
+  var score = nh * Math.log(weight) + nt * Math.log(1 - weight);
+  factor(score)
+  return weight
+}
+
+var sampleTrainingData = function() {
+  return {nh: randomInteger(30),
+          nt: randomInteger(30)}
+}
+
+//var trainingData = repeat(30, sampleTrainingData);
+
+var model2 = function() {
+  if (_.has(globalStore, 'dont-train')) {
+    console.log(globalStore)
+  } else {
+    var obs = Infer({method: 'forward', model: sampleTrainingData}).sample()
+    //console.log(obs)
+    globalStore['nh'] = obs.nh
+    globalStore['nt'] = obs.nt
+  }
+
+  return model()
+}
+
+var dist = Infer({
+  model: model2,
+  method: 'optimize',
+  steps: 2000,
+  estimator: {ELBO: {samples: 20}},
+  //optMethod: {adam: {stepSize: 0.001}},
+  verbose: true
+})
+
+
+//getParams()
+
+globalStore['dont-train'] = true
+globalStore['nh'] = 20
+globalStore['nt'] = 5
+expectation(Infer({model: model2,
+                   method: 'optimize',
+                   samples: 10}))
+
+//getParams()
