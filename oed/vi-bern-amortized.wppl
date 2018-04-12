@@ -17,27 +17,32 @@ var model = function() {
   var weight = sample(Beta({a: 2, b: 2}),
                       {guide: function() {
                         var net = affine('recog', {in: 2, out: 2})
-                        var y = T.sigmoid(net(Vector([nh, nt])));
-                        // squish to (2,b)
-                        var a = 2
-                        var b = 50
-                        var params = T.add(T.mul(y, b - a), a);
+                        var out = net(Vector([nh, nt]))
+                        // sqrt(x^2 + eps^2) is a differentiable approximation to abs
+                        var outPos = T.sqrt(T.add(T.pow(out, 2), T.mul(Vector([1,1]), 0.01)))
+
+                        //var outPos = T.abs(out)
+                        // var y = T.sigmoid(net(Vector([nh, nt])));
+                        // // squish to (2,b)
+                        // var a = 2
+                        // var b = 50
+                        // var params = T.add(T.mul(y, b - a), a);
                         //hack.log(T.toScalars(ad.valueRec(params)))
                         //display(T.toScalars(y))
 
                         // display(nh + ',' + nt)
                         // display(T.toScalars(params))
                         // display('')
+                        //display(T.toScalars(outPos))
 
-                        Beta({a: T.get(params, 0),
-                              b: T.get(params, 1)})
+                        Beta({a: T.get(outPos, 0), b: T.get(outPos, 1)})
 
                         // var guideMu = T.get(netOutput, 0)
                         // var guideSigma = Math.exp(T.get(netOutput, 1))
                         // return LogitNormal({a: 0.0001,
                         //                     b: 0.9999,
-                        //                     mu: guideMu,
-                        //                     sigma: guideSigma})
+                        //                     mu: T.get(outPos, 0),
+                        //                     sigma: T.get(outPos, 1)})
 
                       }})
   var score = nh * Math.log(weight) + nt * Math.log(1 - weight);
@@ -45,7 +50,7 @@ var model = function() {
   return weight
 }
 
-var numELBOSamples = 20;
+var numELBOSamples = 10;
 
 var TRAIN = {
   iter: 0,
@@ -56,7 +61,7 @@ var _sampleTrainingData = function() {
           nt: randomInteger(10) + 1}//randomInteger(30)}
 }
 
-var trainingBlockSize = 1;
+var trainingBlockSize = 10;
 var sampleTrainingData = function() {
   if (TRAIN.iter % (numELBOSamples * trainingBlockSize) == 0) {
     _.extend(TRAIN, {data: _sampleTrainingData()})
@@ -95,18 +100,18 @@ var model2 = function() {
   return model()
 }
 
-
+util.seedRNG(2)
 var dist = Infer({
   model: model2,
   method: 'optimize',
   steps: 10000,
   estimator: {ELBO: {samples: numELBOSamples}},
-  optMethod: {adam: {stepSize: 0.005}},
+  optMethod: {adam: {stepSize: 0.01}},
   verbose: true
 })
 
 
-// display(getParams())
+display(getParams())
 
 var w = getParams().recogw
 var b = getParams().recogb
@@ -114,20 +119,16 @@ var b = getParams().recogb
 // display(Vector([1,12]))
 var nnOutput = T.add(T.dot(w, Vector([12,5])), b)
 
-var y = T.sigmoid(nnOutput)
-// squish to (2,b)
-var squishA = 2
-var squishB = 50
-var params = T.add(T.mul(y, squishB - squishA), squishA);
+var y = T.abs(nnOutput)
 
-params
+display(y)
 
 
-// globalStore['dont-train'] = true
-// globalStore['nh'] = 1
-// globalStore['nt'] = 12
-// expectation(Infer({model: model2,
-//                    method: 'optimize',
-//                    samples: 10}))
+globalStore['dont-train'] = true
+globalStore['nh'] = 1
+globalStore['nt'] = 12
+expectation(Infer({model: model2,
+                   method: 'optimize',
+                   samples: 10}))
 
 //getParams()
