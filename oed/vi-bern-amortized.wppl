@@ -20,10 +20,18 @@ var model = function() {
                         var y = T.sigmoid(net(Vector([nh, nt])));
                         // squish to (2,b)
                         var a = 2
-                        var b = 100
+                        var b = 50
                         var params = T.add(T.mul(y, b - a), a);
+                        //hack.log(T.toScalars(ad.valueRec(params)))
+                        //display(T.toScalars(y))
+
+                        // display(nh + ',' + nt)
+                        // display(T.toScalars(params))
+                        // display('')
+
                         Beta({a: T.get(params, 0),
                               b: T.get(params, 1)})
+
                         // var guideMu = T.get(netOutput, 0)
                         // var guideSigma = Math.exp(T.get(netOutput, 1))
                         // return LogitNormal({a: 0.0001,
@@ -37,46 +45,26 @@ var model = function() {
   return weight
 }
 
+var numELBOSamples = 20;
+
+var TRAIN = {
+  iter: 0,
+  data: null
+}
+var _sampleTrainingData = function() {
+  return {nh: randomInteger(10) + 1,//randomInteger(30),
+          nt: randomInteger(10) + 1}//randomInteger(30)}
+}
+
+var trainingBlockSize = 1;
 var sampleTrainingData = function() {
-  return {nh: randomInteger(30),
-          nt: randomInteger(30)}
-}
-
-//var trainingData = repeat(30, sampleTrainingData);
-
-var model2 = function() {
-  if (_.has(globalStore, 'dont-train')) {
-    console.log(globalStore)
-  } else {
-    var obs = Infer({method: 'forward', model: sampleTrainingData}).sample()
-    //console.log(obs)
-    globalStore['nh'] = obs.nh
-    globalStore['nt'] = obs.nt
+  if (TRAIN.iter % (numELBOSamples * trainingBlockSize) == 0) {
+    _.extend(TRAIN, {data: _sampleTrainingData()})
   }
-
-  return model()
+  _.extend(TRAIN, {iter: TRAIN.iter + 1})
+  return TRAIN.data
 }
 
-var dist = Infer({
-  model: model2,
-  method: 'optimize',
-  steps: 2000,
-  estimator: {ELBO: {samples: 20}},
-  //optMethod: {adam: {stepSize: 0.001}},
-  verbose: true
-})
-
-
-//getParams()
-
-globalStore['dont-train'] = true
-globalStore['nh'] = 20
-globalStore['nt'] = 5
-expectation(Infer({model: model2,
-                   method: 'optimize',
-                   samples: 10}))
-
-//getParams()
 
 
 // SNQ(expectation(Infer({
@@ -91,3 +79,55 @@ expectation(Infer({model: model2,
 // })))
 
 
+//var trainingData = repeat(30, sampleTrainingData);
+
+globalStore['trainingIteration'] = 0
+var model2 = function() {
+  if (_.has(globalStore, 'dont-train')) {
+    console.log(globalStore)
+  } else {
+    var obs = Infer({method: 'forward', model: sampleTrainingData, samples: 1}).sample()
+    //console.log(obs)
+    globalStore['nh'] = obs.nh
+    globalStore['nt'] = obs.nt
+  }
+
+  return model()
+}
+
+
+var dist = Infer({
+  model: model2,
+  method: 'optimize',
+  steps: 10000,
+  estimator: {ELBO: {samples: numELBOSamples}},
+  optMethod: {adam: {stepSize: 0.005}},
+  verbose: true
+})
+
+
+// display(getParams())
+
+var w = getParams().recogw
+var b = getParams().recogb
+
+// display(Vector([1,12]))
+var nnOutput = T.add(T.dot(w, Vector([12,5])), b)
+
+var y = T.sigmoid(nnOutput)
+// squish to (2,b)
+var squishA = 2
+var squishB = 50
+var params = T.add(T.mul(y, squishB - squishA), squishA);
+
+params
+
+
+// globalStore['dont-train'] = true
+// globalStore['nh'] = 1
+// globalStore['nt'] = 12
+// expectation(Infer({model: model2,
+//                    method: 'optimize',
+//                    samples: 10}))
+
+//getParams()
