@@ -1,5 +1,17 @@
 // (local-set-key (kbd "s-r") (lambda () (interactive) (save-buffer) (process-send-string "*shell skm-oed*" "echo '\n'; webppl vi-bern-amortized.wppl\n")))
 
+// show and quit
+var SNQ = function(v) {
+  display(v)
+  process.exit()
+}
+
+
+var hack = {
+  log: _.throttle(console.log, 300)
+}
+
+
 var model = function() {
   var nh = globalStore['nh'], nt = globalStore['nt']
   var weight = sample(Beta({a: 2, b: 2}),
@@ -65,3 +77,17 @@ expectation(Infer({model: model2,
                    samples: 10}))
 
 //getParams()
+
+
+// SNQ(expectation(Infer({
+//   model: function() { globalStore['nh'] = 12;
+//                       globalStore['nt'] = 5;
+//                       model()},
+//   method: 'optimize',
+//   steps: 2000,
+//   estimator: {ELBO: {samples: 20}},
+//   optMethod: {adam: {stepSize: 0.01}},
+//   verbose: true
+// })))
+
+
