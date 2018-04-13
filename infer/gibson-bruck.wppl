@@ -19,6 +19,11 @@ var round3 = function(x) {
   return Math.round(x * 1000)/1000;
 }
 
+var round6 = function(x) {
+  return Math.round(x * 1000000)/1000000;
+}
+
+
 var mean = function(xs) {
   sum(xs) / xs.length
 }
@@ -120,7 +125,7 @@ var vLaws = _map(laws, function(law) { return Vector(law) });
 
 
 var dependsOn = cache(function(i,j) {
-  display('does [' + lawStrings[i] + '] depend on [' + lawStrings[j] + '] ?' )
+  //display('does [' + lawStrings[i] + '] depend on [' + lawStrings[j] + '] ?' )
   //display('relevant inputs: ' + lawInputStrings[i].join(', '))
   var iInputStrings = lawInputStrings[i]
   return _.some(_map(iInputStrings,
@@ -131,14 +136,15 @@ var dependsOn = cache(function(i,j) {
                      }))
 })
 
-_map(lawNums,
-     function(i) {
-       _map(lawNums,
-            function(j) {
-              console.log(dependsOn(i,j))
-            }
-           )
-     })
+// _map(lawNums,
+//      function(i) {
+//        _map(lawNums,
+//             function(j) {
+//               console.log(dependsOn(i,j))
+//             }
+//            )
+//      })
+//exit()
 
 var kProtDeg = 0.0002
 var kCodOn = 0.02 // assumed to be unknown in wilkinson paper
@@ -220,6 +226,7 @@ var gillespie = function(vRates, vState, tStart, tEnd) {
   var dt = sample(dtDist);
   var lawDist = Discrete({ps: hazards});
   var lawNum = sample(lawDist);
+  console.log('gillespie ' + lawNum);
 
   var stateUpdate = vLaws[lawNum];
   var newState = T.add(vState, stateUpdate);
@@ -239,40 +246,78 @@ var gillespie = function(vRates, vState, tStart, tEnd) {
 // _hazards and _reactionTimes are cumulative arrays
 var gibsonBruck = function(rates, vState, tStart, tEnd, _hazards, _reactionTimes) {
 
-  var recurse = function(t, vState, hazards, reactionTimes) {
-    if (t > tEnd) {
-      return []
-    }
-    var tNext = _.min(reactionTimes)
-    var lawNum = _.indexOf(reactionTimes, tNext)
-
-    var stateUpdate = vLaws[lawNum];
-    var newState = T.add(vState, stateUpdate);
-
-    // update hazard for the law that just happened
-    // update hazards for any dependent laws
-  }
-
-
-  var getGValue = function(i) {
+  var getHazard = function(state, i) {
     var input = lawInputs[i]
-    return product(_map(speciesNums,
-                        function(j) {
-                          var state_j = T.get(vState, j)
-                          var input_j = input[j]
-                          return choose(state_j, input_j)
-                        }))
+    return rates[i] * product(_map(speciesNums,
+                                   function(j) {
+                                     var state_j = T.get(state, j)
+                                     var input_j = input[j]
+                                     return choose(state_j, input_j)
+                                   }))
   }
 
-  var hazards = _map2(rates, map(getGValue, lawNums), function(x,y) { x * y })
+  var recurse = function(t, vState, oldHazards, oldReactionTimes) {
+    if (t > tEnd) {
+      return {t: t, state: vState}
+    }
+    var tNext = _.min(oldReactionTimes)
+    var i = _.indexOf(oldReactionTimes, tNext)
+    display('old hazards: ' + _map(oldHazards, round6).join(', '))
+    display('old rts:     ' + _map(oldReactionTimes, round6).join(', '))
+    display('running law ' + i + ' : ' + lawStrings[i])
+    display('time is ' + tNext)
+
+    var stateUpdate = vLaws[i];
+    var newState = T.add(vState, stateUpdate);
+    display('state:')
+    display(_.fromPairs(_.zip(speciesNames, T.toScalars(newState))))
+
+    // update hazards for any dependent laws
+    var newHazards = _map(lawNums,
+                          function(j) {
+                            if (dependsOn(j,i) || j == i) {
+                              console.log('changed hazard for ' + lawStrings[j] + ': ' + getHazard(newState, j))
+                              return getHazard(newState, j)
+                            } else {
+                              return oldHazards[j]
+                            }
+                          })
+
+    var newReactionTimes = _map(lawNums,
+                                function(j) {
+                                  if (newHazards[j] == 0) {
+                                    return Infinity
+                                  } else if (j == i) {
+                                    return tNext + sample(Exponential({a: newHazards[j]}))
+                                  } else if (dependsOn(j,i)) {
+                                    if (oldReactionTimes[j] == Infinity) {
+                                      display(newHazards[j])
+                                      return tNext + sample(Exponential({a: newHazards[j]}))
+                                    } else {
+                                      return tNext + (oldHazards[j] / newHazards[j]) * (oldReactionTimes[j] - tNext)
+                                    }
+                                  } else {
+                                    return oldReactionTimes[j]
+                                  }
+                                }
+                               )
+
+    display('new hazards: ' + _map(newHazards, round6).join(', '))
+    display('new rts:     ' + _map(newReactionTimes, round6).join(', '))
+
+    display('\n')
+    return recurse(tNext, newState, newHazards, newReactionTimes)
+  }
+
+  var hazards = _map(lawNums, function(i) { getHazard(vState, i)} )
   var reactionTimes = _map(hazards, function(h) { return h === 0 ? Infinity : sample(Exponential({a: h})) })
   return recurse(tStart, vState, hazards, reactionTimes)
 }
 
 util.seedRNG(2)
-var global_tEnd = 300;
+var global_tEnd = 30;
 
-//var actualMeasurement = _.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state
+//display(_.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state)
 
 //actualMeasurement
 
