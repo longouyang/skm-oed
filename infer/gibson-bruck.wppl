@@ -125,14 +125,15 @@ var vLaws = _map(laws, function(law) { return Vector(law) });
 
 
 var dependsOn = cache(function(i,j) {
-  //display('does [' + lawStrings[i] + '] depend on [' + lawStrings[j] + '] ?' )
-  //display('relevant inputs: ' + lawInputStrings[i].join(', '))
+  // display('don' + i + ',' + j)
+  // display('does [' + lawStrings[i] + '] depend on [' + lawStrings[j] + '] ?' )
+  // display('relevant inputs: ' + lawInputStrings[i].join(', '))
   var iInputStrings = lawInputStrings[i]
   return _.some(_map(iInputStrings,
                      function(name) {
                        var speciesNum = speciesNameToNum[name]
                        //display('j change to ' + name + ': ' + speciesNum)
-                       return laws[j][speciesNum] > 0
+                       return laws[j][speciesNum] != 0
                      }))
 })
 
@@ -144,7 +145,7 @@ var dependsOn = cache(function(i,j) {
 //             }
 //            )
 //      })
-//exit()
+// exit()
 
 var kProtDeg = 0.0002
 var kCodOn = 0.02 // assumed to be unknown in wilkinson paper
@@ -226,7 +227,6 @@ var gillespie = function(vRates, vState, tStart, tEnd) {
   var dt = sample(dtDist);
   var lawDist = Discrete({ps: hazards});
   var lawNum = sample(lawDist);
-  console.log('gillespie ' + lawNum);
 
   var stateUpdate = vLaws[lawNum];
   var newState = T.add(vState, stateUpdate);
@@ -276,7 +276,7 @@ var gibsonBruck = function(rates, vState, tStart, tEnd, _hazards, _reactionTimes
     var newHazards = _map(lawNums,
                           function(j) {
                             if (dependsOn(j,i) || j == i) {
-                              console.log('changed hazard for ' + lawStrings[j] + ': ' + getHazard(newState, j))
+                              display('changed hazard for ' + lawStrings[j] + ': ' + getHazard(newState, j))
                               return getHazard(newState, j)
                             } else {
                               return oldHazards[j]
@@ -314,11 +314,9 @@ var gibsonBruck = function(rates, vState, tStart, tEnd, _hazards, _reactionTimes
   return recurse(tStart, vState, hazards, reactionTimes)
 }
 
-util.seedRNG(2)
+util.seedRNG(4)
 var global_tEnd = 30;
 
-//display(_.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state)
 
-//actualMeasurement
-
-gibsonBruck(trueRates, vInitialState, 0, global_tEnd)
+display(gibsonBruck(trueRates, vInitialState, 0, global_tEnd))
+display(_.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state)
