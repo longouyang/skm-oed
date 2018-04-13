@@ -286,12 +286,12 @@ var parameterInference = function(actualMeasurement) {
 util.seedRNG(2)
 var actualMeasurement = _.last(gillespie(Vector(trueRates), vInitialState, 0, global_tEnd)).state
 // console.log(T.toScalars(actualMeasurement))
-util.seedRNG(7)
-var r = [estimateLikelihoodFwd(trueRates, actualMeasurement),
-         estimateLikelihood(Vector(trueRates), actualMeasurement)
-        ]
-r
+// util.seedRNG(7)
+// var r = [estimateLikelihoodFwd(trueRates, actualMeasurement),
+//          estimateLikelihood(Vector(trueRates), actualMeasurement)
+//         ]
+// r
 
 
-//parameterInference(actualMeasurement)
+parameterInference(actualMeasurement)
 //display(actualMeasurement)

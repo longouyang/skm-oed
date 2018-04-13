@@ -117,18 +117,8 @@ var w = getParams().recogw
 var b = getParams().recogb
 
 // display(Vector([1,12]))
-var nnOutput = T.add(T.dot(w, Vector([12,5])), b)
+var nnOutput = T.add(T.dot(w, Vector([0,16])), b)
 
 var y = T.abs(nnOutput)
 
 display(y)
-
-
-globalStore['dont-train'] = true
-globalStore['nh'] = 1
-globalStore['nt'] = 12
-expectation(Infer({model: model2,
-                   method: 'optimize',
-                   samples: 10}))
-
-//getParams()
